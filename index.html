@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Projectile Experiment</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background: #eeeeee;
+    color: #222;
+    text-align: center;
+    margin: 0;
+    padding: 24px 12px;
+  }
+  .container {
+    max-width: 720px;
+    margin: auto;
+    background: white;
+    padding: 22px;
+    border: 1px solid #cccccc;
+    border-radius: 12px;
+  }
+  h1 { color: #55559a; margin-top: 5px; }
+  button, select {
+    font-size: 16px;
+    padding: 9px 14px;
+    margin: 6px;
+    border: 1px solid #777;
+    border-radius: 6px;
+    background: #e5e5f5;
+    cursor: pointer;
+  }
+  button:hover { background: #d3d3ed; }
+  button.selected { background: #7777b8; color: white; }
+  canvas {
+    display: block;
+    width: 100%;
+    max-width: 600px;
+    height: auto;
+    margin: 18px auto;
+    background: #f7f7fb;
+    border: 1px solid #cccccc;
+  }
+  .results {
+    display: flex;
+    justify-content: center;
+    gap: 35px;
+    flex-wrap: wrap;
+    margin-top: 15px;
+  }
+  .result { min-width: 130px; background: #f1f1f8; padding: 12px; border-radius: 8px; }
+  .number { font-size: 24px; color: #55559a; font-weight: bold; }
+  .note { color: #555; font-size: 13px; line-height: 1.4; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Projectile Experiment</h1>
+  <p>Choose a launch angle and see the results from our experiment.</p>
+
+  <h3>1. Choose an angle</h3>
+  <button id="angle70" class="selected" onclick="chooseAngle(70)">70°</button>
+  <button id="angle75" onclick="chooseAngle(75)">75°</button>
+
+  <h3>2. Choose a trial</h3>
+  <select id="trialSelect" onchange="updateTrialLabel()">
+    <option value="0">Trial 1</option>
+    <option value="1">Trial 2</option>
+  </select>
+  <p id="selected">Selected: 70° — Trial 1</p>
+
+  <button onclick="launch()">LAUNCH!</button>
+  <button onclick="resetAnimation()">Reset</button>
+
+  <canvas id="simulation" width="600" height="270"></canvas>
+  <p class="note">The curved path is an illustration of projectile motion. The time and distance below are the measurements recorded in our experiment.</p>
+
+  <h3>3. Experiment results</h3>
+  <div class="results">
+    <div class="result">
+      <div>Hangtime</div>
+      <div class="number" id="time">-- s</div>
+    </div>
+    <div class="result">
+      <div>Horizontal range</div>
+      <div class="number" id="distance">-- m</div>
+    </div>
+  </div>
+</div>
+<script>
+const results = {
+  70: [
+    { time: 4.00, distance: 15.4 },
+    { time: 2.35, distance: 12.6 }
+  ],
+  75: [
+    { time: 4.02, distance: 14.7 },
+    { time: 3.78, distance: 14.2 }
+  ]
+};
+
+let angle = 70;
+let animationId = null;
+
+function chooseAngle(value) {
+  angle = value;
+  document.getElementById('angle70').classList.toggle('selected', angle === 70);
+  document.getElementById('angle75').classList.toggle('selected', angle === 75);
+  updateTrialLabel();
+  showResults();
+}
+
+function getTrial() {
+  return Number(document.getElementById('trialSelect').value);
+}
+
+function updateTrialLabel() {
+  document.getElementById('selected').textContent =
+    'Selected: ' + angle + '° — Trial ' + (getTrial() + 1);
+  showResults();
+}
+
+function showResults() {
+  const trial = results[angle][getTrial()];
+  document.getElementById('time').textContent = trial.time.toFixed(2) + ' s';
+  document.getElementById('distance').textContent = trial.distance.toFixed(1) + ' m';
+}
+
+function drawBackground(ctx) {
+  ctx.clearRect(0, 0, 600, 270);
+  ctx.strokeStyle = '#777777';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(25, 225);
+  ctx.lineTo(575, 225);
+  ctx.stroke();
+  ctx.fillStyle = '#333333';
+  ctx.font = '13px Arial';
+  ctx.fillText('Launch', 20, 246);
+  ctx.fillText('Landing area', 510, 246);
+  ctx.fillStyle = '#7777b8';
+  ctx.fillRect(20, 211, 12, 14);
+}
+
+function resetAnimation() {
+  if (animationId) cancelAnimationFrame(animationId);
+  const canvas = document.getElementById('simulation');
+  const ctx = canvas.getContext('2d');
+  drawBackground(ctx);
+  showResults();
+}
+
+function launch() {
+  resetAnimation();
+  const canvas = document.getElementById('simulation');
+  const ctx = canvas.getContext('2d');
+  let progress = 0;
+  const height = angle === 70 ? 145 : 160;
+
+  function animate() {
+    drawBackground(ctx);
+    const x = 30 + progress * 535;
+    const y = 211 - Math.sin(progress * Math.PI) * height;
+
+    // Draw the path behind the moving ball.
+    ctx.beginPath();
+    for (let p = 0; p <= progress; p += 0.01) {
+      const px = 30 + p * 535;
+      const py = 211 - Math.sin(p * Math.PI) * height;
+      if (p === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.strokeStyle = '#9999cc';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    // Draw the moving projectile.
+    ctx.beginPath();
+    ctx.arc(x, y, 9, 0, Math.PI * 2);
+    ctx.fillStyle = '#55559a';
+    ctx.fill();
+
+    progress += 0.012;
+    if (progress <= 1) animationId = requestAnimationFrame(animate);
+    else showResults();
+  }
+  animate();
+}
+
+resetAnimation();
+</script>
+</body>
+</html>
